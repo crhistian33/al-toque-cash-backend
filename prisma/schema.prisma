@@ -1,0 +1,164 @@
+// ─────────────────────────────────────────────────────────
+// AL TOQUE CA$H — Prisma 7 schema
+// ─────────────────────────────────────────────────────────
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ───────────────────────────────────────────────
+
+/// Rol del staff interno (CMS). No se usa para clientes.
+enum AdminRole {
+  ADMIN
+  SUPERADMIN
+}
+
+/// Cómo se autenticó el usuario en Clerk la primera vez
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum Currency {
+  USD
+  PEN
+}
+
+enum Bank {
+  BCP
+  INTERBANK
+  SCOTIABANK
+  BBVA
+  BANCO_FALABELLA
+  OTROS
+}
+
+enum TransactionStatus {
+  PENDING     // creada, esperando voucher/confirmación por whatsapp
+  IN_REVIEW   // voucher recibido, en verificación
+  COMPLETED   // dinero abonado
+  CANCELLED   // cancelada por el cliente o el admin
+  REJECTED    // rechazada (ej. voucher inválido)
+}
+
+// ── Modelos ─────────────────────────────────────────────
+model Customer {
+  id        String   @id @default(uuid())
+
+  /// ID del usuario en Clerk (user_xxx). Fuente de verdad de auth.
+  clerkId   String   @unique
+
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  phone     String?
+
+  /// Proveedor con el que se registró por primera vez en Clerk
+  authProvider  AuthProvider @default(EMAIL)
+
+  /// true si el email fue verificado en Clerk
+  emailVerified Boolean      @default(false)
+
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts     Account[]
+  transactions Transaction[]
+
+  @@index([email])
+  @@map("customers")
+}
+
+/// Usuario del futuro CMS de administración (staff interno).
+/// También se autentica con Clerk, pero se crea por invitación, no por
+/// registro público — nunca desde el flujo del sitio.
+model AdminUser {
+  id        String    @id @default(uuid())
+
+  clerkId   String    @unique
+
+  email     String    @unique
+  firstName String?
+  lastName  String?
+
+  role      AdminRole @default(ADMIN)
+  isActive  Boolean   @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([email])
+  @@map("admin_users")
+}
+
+/// Cuenta bancaria del cliente para recibir el cambio de moneda.
+/// Un cliente puede tener varias cuentas (una por moneda/banco).
+model Account {
+  id                String   @id @default(uuid())
+
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  currency          Currency
+  bank              Bank
+  accountNumber     String
+  /// Código de cuenta interbancario (opcional pero recomendado)
+  cci               String?
+  accountHolderName String
+
+  isActive          Boolean  @default(true)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  transactions      Transaction[]
+
+  @@unique([customerId, currency, accountNumber])
+  @@index([customerId])
+  @@map("accounts")
+}
+
+/// Operación de cambio de moneda solicitada por un cliente.
+model Transaction {
+  id                String            @id @default(uuid())
+
+  customerId        String
+  customer          Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  accountId         String
+  account           Account           @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  /// Moneda y monto que el cliente envía
+  sentCurrency      Currency
+  sentAmount        Decimal           @db.Decimal(12, 2)
+
+  /// Moneda y monto que el cliente recibirá
+  receivedCurrency  Currency
+  receivedAmount    Decimal           @db.Decimal(12, 2)
+
+  /// Tipo de cambio aplicado en el momento de la solicitud
+  exchangeRate      Decimal           @db.Decimal(8, 4)
+
+  status            TransactionStatus @default(PENDING)
+
+  /// URL o referencia del voucher enviado (si se sube luego vía CMS)
+  voucherUrl        String?
+
+  notes             String?
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@map("transactions")
+}

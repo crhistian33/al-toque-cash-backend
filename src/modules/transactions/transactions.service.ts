@@ -1,0 +1,123 @@
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Bank, TransactionStatus } from "generated/prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CreateTransactionDto } from "./dto/create-transaction.dto";
+import { UpdateTransactionStatusDto } from "./dto/update-transaction-status.dto";
+
+const BANK_LABELS: Record<Bank, string> = {
+  BCP: "BCP",
+  INTERBANK: "Interbank",
+  SCOTIABANK: "Scotiabank",
+  BBVA: "BBVA",
+  BANCO_FALABELLA: "Banco Falabella",
+  OTROS: "Otro banco",
+};
+
+@Injectable()
+export class TransactionsService {
+  constructor(private prisma: PrismaService) {}
+
+  private async getCustomerOrThrow(clerkId: string) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { clerkId },
+    });
+    if (!customer) {
+      throw new NotFoundException(
+        "Cliente no encontrado. Llama a /auth/sync primero.",
+      );
+    }
+    return customer;
+  }
+
+  async create(clerkId: string, dto: CreateTransactionDto) {
+    const customer = await this.getCustomerOrThrow(clerkId);
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: dto.accountId },
+    });
+    if (!account) throw new NotFoundException("Cuenta no encontrada");
+    if (account.customerId !== customer.id) {
+      throw new ForbiddenException("Esta cuenta no te pertenece");
+    }
+
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        customerId: customer.id,
+        accountId: account.id,
+        sentCurrency: dto.sentCurrency,
+        sentAmount: dto.sentAmount,
+        receivedCurrency: dto.receivedCurrency,
+        receivedAmount: dto.receivedAmount,
+        exchangeRate: dto.exchangeRate,
+        status: TransactionStatus.PENDING,
+      },
+      include: { account: true },
+    });
+
+    return {
+      transaction,
+      whatsappUrl: this.buildWhatsappUrl(transaction, account),
+    };
+  }
+
+  /** Arma el link wa.me con los datos precargados para enviar el voucher */
+  private buildWhatsappUrl(
+    transaction: Awaited<ReturnType<typeof this.prisma.transaction.create>>,
+    account: { bank: Bank; accountNumber: string; currency: string },
+  ) {
+    const phone = process.env.WHATSAPP_NUMBER ?? "51999877555";
+
+    const message = [
+      `Hola, quiero confirmar mi cambio de moneda #${transaction.id.slice(0, 8)}`,
+      `Envío: ${transaction.sentAmount} ${transaction.sentCurrency}`,
+      `Recibo: ${transaction.receivedAmount} ${transaction.receivedCurrency}`,
+      `Cuenta destino: ${BANK_LABELS[account.bank]} - ${account.currency} - ${account.accountNumber}`,
+      `Adjunto mi voucher a continuación.`,
+    ].join("\n");
+
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  }
+
+  async findMine(clerkId: string) {
+    const customer = await this.getCustomerOrThrow(clerkId);
+    return this.prisma.transaction.findMany({
+      where: { customerId: customer.id },
+      include: { account: true },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async findOneMine(clerkId: string, id: string) {
+    const customer = await this.getCustomerOrThrow(clerkId);
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+    if (!transaction) throw new NotFoundException("Transacción no encontrada");
+    if (transaction.customerId !== customer.id) {
+      throw new ForbiddenException("Esta transacción no te pertenece");
+    }
+    return transaction;
+  }
+
+  // ── Uso administrativo (CMS) ──────────────────────────
+
+  async findAllAdmin() {
+    return this.prisma.transaction.findMany({
+      include: { account: true, customer: true },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async updateStatusAdmin(id: string, dto: UpdateTransactionStatusDto) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id },
+    });
+    if (!transaction) throw new NotFoundException("Transacción no encontrada");
+    return this.prisma.transaction.update({ where: { id }, data: dto });
+  }
+}
