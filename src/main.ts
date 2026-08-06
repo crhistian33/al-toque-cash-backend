@@ -29,7 +29,16 @@ async function bootstrap() {
     .setDescription("API para el exchange de divisas")
     .setVersion("1.0")
     .addTag("Al Toque Cash")
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "Authorization",
+        description: "Ingresa el token JWT de Clerk",
+      },
+      "clerk-auth",
+    )
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("api/docs", app, documentFactory);

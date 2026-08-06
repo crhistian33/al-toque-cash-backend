@@ -20,6 +20,18 @@ enum AdminRole {
   SUPERADMIN
 }
 
+/// Tipo de documento de identidad peruano.
+enum DocumentType {
+  DNI /// 8 dígitos — personas naturales
+  RUC /// 11 dígitos — personas jurídicas y naturales con negocio
+}
+
+/// Cómo se actualizó el tipo de cambio.
+enum ExchangeRateSource {
+  SBS_API  /// Actualización automática vía API externa
+  MANUAL   /// Carga manual por un admin_user
+}
+
 /// Cómo se autenticó el usuario en Clerk la primera vez
 enum AuthProvider {
   EMAIL
@@ -59,6 +71,12 @@ model Customer {
   firstName String?
   lastName  String?
   phone     String?
+
+  /// Tipo de documento de identidad (DNI o RUC)
+  documentType   DocumentType?
+
+  /// Número del documento. DNI = 8 dígitos, RUC = 11 dígitos.
+  documentNumber String?
 
   /// Proveedor con el que se registró por primera vez en Clerk
   authProvider  AuthProvider @default(EMAIL)
@@ -150,6 +168,9 @@ model Transaction {
 
   status            TransactionStatus @default(PENDING)
 
+  /// Indica si el monto es ≥ $10,000 (o eq. en soles) y requiere el formulario SBS
+  sbsRequired       Boolean           @default(false)
+
   /// URL o referencia del voucher enviado (si se sube luego vía CMS)
   voucherUrl        String?
 
@@ -161,4 +182,51 @@ model Transaction {
   @@index([customerId])
   @@index([status])
   @@map("transactions")
+}
+
+/// Tipo de cambio publicado para compra/venta de dólares.
+/// Se crea 1-2 veces al día por el job automático o manualmente por un admin.
+/// El frontend solo consume el último registro (GET /exchange-rate/latest).
+model ExchangeRate {
+  id        String              @id @default(uuid())
+
+  /// S/ por USD que la casa de cambio COMPRA (cliente entrega USD, recibe soles)
+  buyRate   Decimal             @db.Decimal(8, 4)
+
+  /// S/ por USD que la casa de cambio VENDE (cliente entrega soles, recibe USD)
+  sellRate  Decimal             @db.Decimal(8, 4)
+
+  /// Fuente del dato: 'SBS_API' (automático) o 'MANUAL' (admin)
+  source    ExchangeRateSource  @default(SBS_API)
+
+  /// ID del AdminUser que lo cargó manualmente (null si es automático)
+  createdBy String?
+
+  createdAt DateTime            @default(now())
+
+  @@index([createdAt])
+  @@map("exchange_rates")
+}
+
+// ── Configuraciones globales ─────────────────────────────
+
+/// Identificadores únicos para cada parámetro configurable del sistema.
+enum SettingKey {
+  EXCHANGE_RATE_BUY_MARGIN  /// Margen en soles a sumar al precio de compra del BCRP
+  EXCHANGE_RATE_SELL_MARGIN /// Margen en soles a sumar al precio de venta del BCRP
+  WHATSAPP_NUMBER           /// Número de teléfono de atención al cliente (formato internacional, ej: +51999999999)
+}
+
+/// Tabla key-value para configuraciones del sistema administrables en caliente.
+/// Permite al operador cambiar márgenes y datos de contacto sin redesplegar.
+model AppSetting {
+  id        String     @id @default(uuid())
+  key       SettingKey @unique
+
+  /// Siempre String; se parsea (parseFloat, etc.) según la semántica de cada clave.
+  value     String
+
+  updatedAt DateTime   @updatedAt
+
+  @@map("app_settings")
 }

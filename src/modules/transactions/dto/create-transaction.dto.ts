@@ -4,6 +4,8 @@ import {
   IsNumber,
   IsPositive,
   IsString,
+  IsBoolean,
+  IsOptional,
 } from "class-validator";
 import { Currency } from "generated/prisma/client";
 
@@ -29,4 +31,8 @@ export class CreateTransactionDto {
   @IsNumber()
   @IsPositive()
   exchangeRate: number;
+
+  @IsOptional()
+  @IsBoolean()
+  sbsRequired?: boolean;
 }
