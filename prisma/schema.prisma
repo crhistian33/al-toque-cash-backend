@@ -215,6 +215,21 @@ enum SettingKey {
   EXCHANGE_RATE_BUY_MARGIN  /// Margen en soles a sumar al precio de compra del BCRP
   EXCHANGE_RATE_SELL_MARGIN /// Margen en soles a sumar al precio de venta del BCRP
   WHATSAPP_NUMBER           /// Número de teléfono de atención al cliente (formato internacional, ej: +51999999999)
+
+  // ── Datos de contacto y presentación ────────────────────
+  PHONE_NUMBER              /// Teléfono fijo o celular de contacto visible en el sitio
+  ADDRESS                   /// Dirección física del local (puede ser null si no aplica)
+
+  // ── Horarios de atención ─────────────────────────────────
+  SCHEDULE_1                /// Horario de atención principal (ej: "Lun–Vie 9am–6pm")
+  SCHEDULE_2                /// Horario de atención secundario (ej: "Sáb 9am–1pm")
+
+  // ── Contenido del footer ─────────────────────────────────
+  FOOTER_DESCRIPTION        /// Descripción corta que aparece en el footer del sitio
+  LOGO_URL                  /// URL pública del logo de la empresa
+
+  // ── Datos bancarios ──────────────────────────────────────
+  COMPANY_BANK_ACCOUNTS     /// JSON array de CompanyBankAccount serializado; cuentas receptoras de la empresa
 }
 
 /// Tabla key-value para configuraciones del sistema administrables en caliente.

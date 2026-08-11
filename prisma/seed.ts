@@ -34,7 +34,18 @@ async function main() {
     { key: SettingKey.EXCHANGE_RATE_SELL_MARGIN, value: '0' },
     // Número de WhatsApp de atención al cliente (formato internacional)
     { key: SettingKey.WHATSAPP_NUMBER, value: '+51999999999' },
+    // Datos de contacto y presentación
+    { key: SettingKey.PHONE_NUMBER, value: '' },
+    { key: SettingKey.ADDRESS, value: '' },         // vacío = sin dirección (null semántico)
+    // Horarios de atención
+    { key: SettingKey.SCHEDULE_1, value: '' },
+    { key: SettingKey.SCHEDULE_2, value: '' },
+    // Footer
+    { key: SettingKey.FOOTER_DESCRIPTION, value: '' },
+    { key: SettingKey.LOGO_URL, value: '' },        // vacío = sin logo configurado
+    { key: SettingKey.COMPANY_BANK_ACCOUNTS, value: '[]' }, // JSON array de cuentas bancarias
   ];
+
 
   for (const setting of defaultSettings) {
     await prisma.appSetting.upsert({
