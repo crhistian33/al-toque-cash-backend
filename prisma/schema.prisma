@@ -219,7 +219,7 @@ enum SettingKey {
   // ── Datos de contacto y presentación ────────────────────
   PHONE_NUMBER              /// Teléfono fijo o celular de contacto visible en el sitio
   ADDRESS                   /// Dirección física del local (puede ser null si no aplica)
-
+  EMAIL                     /// Email de contacto visible en el sitio
   // ── Horarios de atención ─────────────────────────────────
   SCHEDULE_1                /// Horario de atención principal (ej: "Lun–Vie 9am–6pm")
   SCHEDULE_2                /// Horario de atención secundario (ej: "Sáb 9am–1pm")

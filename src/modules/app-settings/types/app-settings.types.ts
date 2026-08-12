@@ -12,7 +12,7 @@
  * el servicio lo parsea a un array de objetos o devuelve [] si está vacío.
  */
 export interface PublicSettingsDto {
-  whatsappNumber: string;
+  whatsappNumber: string | null;
   phoneNumber: string | null;
   address: string | null;
   schedule1: string | null;
@@ -21,6 +21,7 @@ export interface PublicSettingsDto {
   logoUrl: string | null;
   /** Cuentas bancarias de la empresa para recibir transferencias. */
   companyBankAccounts: CompanyBankAccount[];
+  email: string | null;
 }
 
 /**
@@ -39,7 +40,7 @@ export interface CompanyBankAccount {
   /** Nombre del banco (ej: "BCP", "Interbank"). */
   bank: string;
   /** Tipo de moneda: "PEN" | "USD". */
-  currency: 'PEN' | 'USD';
+  currency: "PEN" | "USD";
   /** Número de cuenta bancaria. */
   accountNumber: string;
   /** Número de cuenta interbancaria (CCI), opcional. */

@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { SettingKey } from 'generated/prisma/enums';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { SettingKey } from "generated/prisma/enums";
 import {
   AdminSettingsDto,
   CompanyBankAccount,
   PublicSettingsDto,
-} from './types/app-settings.types';
+} from "./types/app-settings.types";
 
 @Injectable()
 export class AppSettingsService {
@@ -38,7 +38,7 @@ export class AppSettingsService {
   /** Devuelve todas las filas raw (para usos internos o listados planos). */
   async findAll() {
     return this.prisma.appSetting.findMany({
-      orderBy: { key: 'asc' },
+      orderBy: { key: "asc" },
     });
   }
 
@@ -51,13 +51,17 @@ export class AppSettingsService {
     const map = new Map(rows.map((r) => [r.key, r.value]));
 
     const parseNum = (v: string | undefined): number => {
-      const n = parseFloat(v ?? '0');
+      const n = parseFloat(v ?? "0");
       return isNaN(n) ? 0 : n;
     };
 
     return {
-      exchangeRateBuyMargin: parseNum(map.get(SettingKey.EXCHANGE_RATE_BUY_MARGIN)),
-      exchangeRateSellMargin: parseNum(map.get(SettingKey.EXCHANGE_RATE_SELL_MARGIN)),
+      exchangeRateBuyMargin: parseNum(
+        map.get(SettingKey.EXCHANGE_RATE_BUY_MARGIN),
+      ),
+      exchangeRateSellMargin: parseNum(
+        map.get(SettingKey.EXCHANGE_RATE_SELL_MARGIN),
+      ),
       ...this._buildPublicPayload(map),
     };
   }
@@ -80,10 +84,10 @@ export class AppSettingsService {
    */
   private _buildPublicPayload(map: Map<string, string>): PublicSettingsDto {
     const nullIfEmpty = (v: string | undefined): string | null =>
-      v && v.trim() !== '' ? v : null;
+      v && v.trim() !== "" ? v : null;
 
     const parseBankAccounts = (v: string | undefined): CompanyBankAccount[] => {
-      if (!v || v.trim() === '') return [];
+      if (!v || v.trim() === "") return [];
       try {
         const parsed = JSON.parse(v);
         return Array.isArray(parsed) ? (parsed as CompanyBankAccount[]) : [];
@@ -93,14 +97,17 @@ export class AppSettingsService {
     };
 
     return {
-      whatsappNumber: map.get(SettingKey.WHATSAPP_NUMBER) ?? '+51999999999',
+      whatsappNumber: nullIfEmpty(map.get(SettingKey.WHATSAPP_NUMBER)),
       phoneNumber: nullIfEmpty(map.get(SettingKey.PHONE_NUMBER)),
       address: nullIfEmpty(map.get(SettingKey.ADDRESS)),
       schedule1: nullIfEmpty(map.get(SettingKey.SCHEDULE_1)),
       schedule2: nullIfEmpty(map.get(SettingKey.SCHEDULE_2)),
       footerDescription: nullIfEmpty(map.get(SettingKey.FOOTER_DESCRIPTION)),
       logoUrl: nullIfEmpty(map.get(SettingKey.LOGO_URL)),
-      companyBankAccounts: parseBankAccounts(map.get(SettingKey.COMPANY_BANK_ACCOUNTS)),
+      companyBankAccounts: parseBankAccounts(
+        map.get(SettingKey.COMPANY_BANK_ACCOUNTS),
+      ),
+      email: nullIfEmpty(map.get(SettingKey.EMAIL)),
     };
   }
 
@@ -109,14 +116,14 @@ export class AppSettingsService {
   /** Margen de compra en soles (parseado como float, 0 si no está configurado). */
   async getBuyMargin(): Promise<number> {
     const val = await this.get(SettingKey.EXCHANGE_RATE_BUY_MARGIN);
-    const parsed = parseFloat(val ?? '0');
+    const parsed = parseFloat(val ?? "0");
     return isNaN(parsed) ? 0 : parsed;
   }
 
   /** Margen de venta en soles (parseado como float, 0 si no está configurado). */
   async getSellMargin(): Promise<number> {
     const val = await this.get(SettingKey.EXCHANGE_RATE_SELL_MARGIN);
-    const parsed = parseFloat(val ?? '0');
+    const parsed = parseFloat(val ?? "0");
     return isNaN(parsed) ? 0 : parsed;
   }
 
@@ -126,7 +133,7 @@ export class AppSettingsService {
    */
   async getWhatsAppNumber(): Promise<string> {
     const val = await this.get(SettingKey.WHATSAPP_NUMBER);
-    return val || '+51999999999';
+    return val || "+51999999999";
   }
 
   /** Teléfono de contacto visible en el sitio. Null si no está configurado. */
@@ -162,7 +169,7 @@ export class AppSettingsService {
   /** Cuentas bancarias de la empresa. Array vacío si no están configuradas. */
   async getCompanyBankAccounts(): Promise<CompanyBankAccount[]> {
     const val = await this.get(SettingKey.COMPANY_BANK_ACCOUNTS);
-    if (!val || val.trim() === '') return [];
+    if (!val || val.trim() === "") return [];
     try {
       const parsed = JSON.parse(val);
       return Array.isArray(parsed) ? (parsed as CompanyBankAccount[]) : [];
